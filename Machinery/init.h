@@ -6,6 +6,8 @@
 #include <Windows.h>
 
 /**
- * Initializes the heap so that
+ * Initializes the heap.
+ * 
+ * Reserves memory for the initial dynamic block. Commits DEFAULT_INIT_SIZE memory.
  */
 ULONG_PTR init_bheap();
