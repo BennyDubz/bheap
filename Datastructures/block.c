@@ -17,7 +17,7 @@
  * If this fails (we may run out of entries due to thread collisions, for instance),
  * we return NULL
  */
-PULONG_PTR dynamic_unlink_from_freelist(PBHEAP_BLOCK block, ULONG_PTR allocation_size) {
+PDYNAMIC_ALLOCATION dynamic_unlink_from_freelist(PBHEAP_BLOCK block, ULONG_PTR allocation_size) {
 
     PALLOCATION_FREELIST freelist = &block->dynamic_block.freelists[ALLOCATION_SIZE_TO_INDEX(allocation_size)];
 
@@ -40,9 +40,7 @@ PULONG_PTR dynamic_unlink_from_freelist(PBHEAP_BLOCK block, ULONG_PTR allocation
     InterlockedDecrement64(&freelist->list_length);
     InterlockedDecrementRelease16(&freelist->lock);
 
-    PDYNAMIC_ALLOCATION recast = (PDYNAMIC_ALLOCATION) to_allocate;
-
-    return (PULONG_PTR) &recast->data;
+    return (PDYNAMIC_ALLOCATION) to_allocate;
 }
 
 
@@ -160,6 +158,15 @@ static BOOL expand_block_commit(PBHEAP_BLOCK block, PULONG_PTR min_expansion) {
  * it will extend from the block's wilderness.
  */
 PDYNAMIC_ALLOCATION allocate_from_dynamic_block(PBHEAP_BLOCK block, ULONG_PTR allocation_size) {
+
+    // Try to get it from a free list first, if it exists
+    if (block->dynamic_block.freelists[ALLOCATION_SIZE_TO_INDEX(allocation_size)].head != NULL) {
+        PDYNAMIC_ALLOCATION possible_result = dynamic_unlink_from_freelist(block, allocation_size);
+
+        if (possible_result != NULL) {
+            return possible_result;
+        }
+    }
 
     ULONG_PTR true_allocation_size = allocation_size + DYNAMIC_ALLOCATION_OVERHEAD;
 

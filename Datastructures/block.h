@@ -103,7 +103,7 @@ typedef struct BHEAP_BLOCK_STRUCT {
  * If this fails (we may run out of entries due to thread collisions, for instance),
  * we return NULL
  */
-PULONG_PTR dynamic_unlink_from_freelist(PBHEAP_BLOCK block, ULONG_PTR allocation_size);
+PDYNAMIC_ALLOCATION dynamic_unlink_from_freelist(PBHEAP_BLOCK block, ULONG_PTR allocation_size);
 
 
 /**

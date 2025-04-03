@@ -4,5 +4,6 @@
  */
 
 #include <Windows.h>
+#include <assert.h>
 #include "parameters.h"
 #include "macros.h"

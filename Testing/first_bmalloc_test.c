@@ -52,6 +52,28 @@ int main(int argc, char** argv) {
         i += 8;
     }
 
+    // now test some frees
+    bfree(allocation_16);
+    bfree(allocation_2_16);
+
+    PULONG_PTR re_alloc16 = bmalloc(16);
+    PULONG_PTR re_alloc16_2 = bmalloc(16);
+
+    // Order is flipped since we are getting from the head of a freelist
+    if (re_alloc16 != allocation_2_16 || re_alloc16_2 != allocation_16) {
+        infinite_loop();
+    }
+
+    bfree(allocation_128);
+    bfree(allocation_2_128);
+
+    PULONG_PTR final_alloc = bmalloc(16);
+
+    if (final_alloc == re_alloc16 || final_alloc == re_alloc16_2 || final_alloc == NULL) {
+        infinite_loop();
+    }
+
+
     // for (int i = 0; i < 100; i++) {
     //     bmalloc(128);
     // }
