@@ -12,9 +12,9 @@
  * Variables
  */
 
-extern BOOL gl_bheap_initialized = FALSE;
+extern BOOL gl_bheap_initialized;
 
-extern ULONG_PTR gl_bheap_base;
+extern PULONG_PTR gl_bheap_base;
 
 
 /**

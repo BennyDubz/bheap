@@ -4,16 +4,19 @@
  */
 
 
-#include <../Headers/headers.h>
-#include <block.h>
+#include "../Headers/headers.h"
+#include "block.h"
 
-
+#ifndef GLOBAL_STRUCTS
+#define GLOBAL_STRUCTS
 /**
  * This will keep track of the global state of the heap
  */
 typedef struct BHEAP_STATE_STRUCT {
     SHORT consistent_blocks_exist[NUM_ALLOCATION_SIZES];
     ULONG64 allocation_counts[NUM_ALLOCATION_SIZES];
-    PBHEAP_DYNAMIC_BLOCK dynamic_blocks;
+    PBHEAP_BLOCK dynamic_block;
 
 } BHEAP_STATE, *PBHEAP_STATE;
+
+#endif

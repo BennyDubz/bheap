@@ -3,8 +3,8 @@
  * March 24th, 2025
  */
 
-#include <Headers/headers.h>
-#include <Datastructures/datastructures.h>
+#include "../Headers/headers.h"
+#include "../Datastructures/datastructures.h"
 
 
 /**
@@ -18,9 +18,10 @@ PBHEAP_BLOCK create_new_block(WORD block_type);
 
 
 /**
- * From the given heap address, find its associated block. This will likely be used
- * in free() so we can quickly determine where the relevant block is.
+ * Finds the appropriate dynamic block for the calling thread to use.
  * 
- * If the block cannot be found, returns NULL.
+ * This might be a block local to the thread, several threads, or globally to the process
+ * depending on how much contention there is. That is the goal, at least down the road.
  */
-PBHEAP_BLOCK get_block_from_address(void* address);
+PBHEAP_BLOCK get_relevant_dynamic_block();
+

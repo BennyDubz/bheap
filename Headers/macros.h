@@ -5,15 +5,16 @@
  */
 
 
-#include <parameters.h>
-#include <constants.h>
+#include "parameters.h"
+#include "constants.h"
 
 /**
- * FUNCTION MACROS
+ * Function macros
  */
 #define ERROR 0
 #define SUCCESS 1
 
+#define ICE_ADD(PU64, ORIG, U64) ((InterlockedCompareExchange64(PU64, ORIG, U64) == ORIG) ? ORIG : ORIG + U64)
 
 /**
  * Conversion macros
@@ -33,3 +34,10 @@
 
 #define DOWN_TO_BLOCK(x) (x & ~(BLOCK_SIZE - 1))
 
+// Checks for 8-byte alignment
+#define SIZE_NOT_ALIGNED(x) (x & 7)
+
+// Rounds up to 8-byte alignment
+#define ROUND_UP_SIZE(x) (((x & 7) ? ((x | 7) + 1) : x))
+
+#define ROUND_UP_PAGESIZE(x) ((x & 0xFFF) ? ((x | 0xFFF) + 1) : x)

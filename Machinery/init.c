@@ -3,17 +3,18 @@
  * March 22nd, 2025
  */
 
-#include <../globals.h>
-#include <../Headers/macros.h>
-#include <../Headers/parameters.h>
-#include <block_operations.h>
+#include "../globals.h"
+#include "../Headers/macros.h"
+#include "../Headers/parameters.h"
+#include "block_operations.h"
 
 /**
  * Heap-wide globals to initialize
  */
-ULONG_PTR gl_bheap_base;
+PULONG_PTR gl_bheap_base;
 MEM_EXTENDED_PARAMETER gl_block_mem_parameters;
 BHEAP_STATE gl_bheap_state;
+BOOL gl_bheap_initialized;
 
 
 /**
@@ -22,6 +23,10 @@ BHEAP_STATE gl_bheap_state;
 MEM_ADDRESS_REQUIREMENTS address_requirements;
 
 
+/**
+ * Library requirements
+ */
+#pragma comment(lib, "mincore")
 
 /**
  * Initializes the heap.
@@ -46,10 +51,13 @@ ULONG_PTR init_bheap() {
         return ERROR;
     }
 
-    address_requirements.LowestStartingAddress = (void*) initial_block;
-    gl_bheap_base = (void*) initial_block;
+    initial_block->dynamic_block.block_reserve_limit = (PULONG_PTR) ((char*) initial_block + BLOCK_SIZE);
 
-    gl_bheap_state.dynamic_blocks = initial_block; 
+    address_requirements.LowestStartingAddress = (void*) initial_block;
+    gl_bheap_base = (PULONG_PTR) initial_block;
+
+    gl_bheap_state.dynamic_block = initial_block; 
+    gl_bheap_initialized = TRUE;
 
     return SUCCESS;
 }

@@ -3,15 +3,16 @@
  * March 22nd, 2025
  */
 
-#include <../Headers/headers.h>
+#include "../Headers/headers.h"
 
 #define DYNAMIC_BLOCK 0
 #define UNIFORM_BLOCK 1
 
-
 // Example: (16 / 8) - 2 --> 0
 #define ALLOCATION_SIZE_TO_INDEX(x) ((x / 8) - 2)
 
+#ifndef DYN_ALLOC
+#define DYN_ALLOC
 
 /**
  * Allocations from dynamic blocks need to store metadata about the allocations to handle frees
@@ -21,6 +22,13 @@ typedef struct DYNAMIC_ALLOCATION_STRUCT {
     void* data;
 } DYNAMIC_ALLOCATION, *PDYNAMIC_ALLOCATION;
 
+#endif
+
+// We don't count the "data" pointer as overhead, just the size
+#define DYNAMIC_ALLOCATION_OVERHEAD (sizeof(DYNAMIC_ALLOCATION) - 8)
+
+#ifndef ALL_BLOCK
+#define ALL_BLOCK
 
 /**
  * Used for tracking the links in a free list of allocations in a dynamic block
@@ -36,7 +44,7 @@ typedef struct FREED_DYNAMIC_ALLOCATION_STRUCT {
  */
 typedef struct {
     volatile ULONG_PTR list_length;
-    volatile SHORT lock;
+    volatile WORD lock;
     PFREED_DYNAMIC_ALLOCATION head;
 } ALLOCATION_FREELIST, *PALLOCATION_FREELIST;
 
@@ -48,6 +56,8 @@ typedef struct {
  * This allows us to effectively set aside the first 4kb of the block for all of the metadata.
  */
 typedef struct BHEAP_DYNAMIC_BLOCK_STRUCT {
+    // This would allow us to expand dynamic blocks' reserved memory and add new extensions
+    PULONG_PTR block_reserve_limit;
     ALLOCATION_FREELIST freelists[NUM_ALLOCATION_SIZES];
 } BHEAP_DYNAMIC_BLOCK, *PBHEAP_DYNAMIC_BLOCK;
 
@@ -68,23 +78,24 @@ typedef struct BHEAP_BLOCK_STRUCT {
     volatile WORD lock;
     WORD block_type;
 
+    volatile ULONG_PTR contention_count;
+
     // The base address where allocations are actually made
     PULONG_PTR block_base;
 
     // The boundary at which we can continue to allocate into committed memory 
-    PULONG_PTR block_wilderness;
+    volatile PULONG_PTR block_wilderness;
 
     // The limit for committed memory
-    PULONG_PTR block_limit;
-     
-    ULONG_PTR block_size;
-    volatile ULONG64 remaining_memory;
+    volatile PULONG_PTR block_commit_limit;
+
     union {
         BHEAP_DYNAMIC_BLOCK dynamic_block;
         BHEAP_UNIFORM_BLOCK uniform_block;
     };
 } BHEAP_BLOCK, *PBHEAP_BLOCK;
 
+#endif
 
 /**
  * Unlinks an allocation of the given size from the block, if possible.
@@ -100,3 +111,12 @@ PULONG_PTR dynamic_unlink_from_freelist(PBHEAP_BLOCK block, ULONG_PTR allocation
  * 
  */
 void dynamic_insert_into_freelist(PBHEAP_BLOCK block, PDYNAMIC_ALLOCATION allocation);
+
+
+/**
+ * Allocates memory from the dynamic block if possible. 
+ * 
+ * If there are entries for the given size from a free list, it will take it from that. Otherwise,
+ * it will extend from the block's wilderness.
+ */
+PDYNAMIC_ALLOCATION allocate_from_dynamic_block(PBHEAP_BLOCK block, ULONG_PTR allocation_size);
