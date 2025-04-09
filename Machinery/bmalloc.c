@@ -16,6 +16,7 @@ void* handle_large_request(ULONG_PTR allocation_size);
 void* handle_dynamic_request(ULONG_PTR allocation_size);
 void* handle_consistent_request(ULONG_PTR allocation_size);
 
+
 /**
  * Handles all incoming allocation requests
  */
@@ -62,6 +63,8 @@ void* handle_large_request(ULONG_PTR allocation_size) {
      * 
      * 2. Write in or otherwise track the metadata (not sure how yet) to be able to unmap it
      */
+    void* allocation = VirtualAlloc(NULL, allocation_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
     return NULL;
 }
 

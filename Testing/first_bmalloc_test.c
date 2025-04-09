@@ -5,6 +5,8 @@
 
 #include <Windows.h>
 #include "../Machinery/bmalloc.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 void infinite_loop() {
     volatile ULONG64 count = 0;
@@ -13,8 +15,8 @@ void infinite_loop() {
     }
 }
 
-int main(int argc, char** argv) {
 
+void first_single_thread_tests() {
     PULONG_PTR allocation_16;
     PULONG_PTR allocation_2_16;
     PULONG_PTR allocation_128;
@@ -73,6 +75,48 @@ int main(int argc, char** argv) {
         infinite_loop();
     }
 
+
+
+}
+
+
+void large_allocation_test_single_thread() {
+    PULONG_PTR allocation_ptr;
+
+    allocation_ptr = bmalloc(4096);
+
+    if (allocation_ptr == NULL) {
+        printf("Test failed - first allocation is NULL\n");
+        infinite_loop();
+    }
+
+    *allocation_ptr = 0xFFFFFFFF;
+
+    PULONG_PTR mega_ptr = bmalloc(4096 * 1024);
+
+    if (mega_ptr == NULL) {
+        printf("Test failed - much larger allocation is NULL");
+    }
+
+    for (char* ptr = mega_ptr; ptr < (char*) mega_ptr + (4096 * 1024); ptr++) {
+        *ptr = '\xff';
+    }
+
+    printf("Large allocation test single thread succeeded\n");
+}
+
+
+int main(int argc, char** argv) {
+
+    if (argc == 1) {
+        first_single_thread_tests();
+        return;
+    }
+
+    if (argc == 2) {
+        large_allocation_test_single_thread();
+        return;
+    }
 
     // for (int i = 0; i < 100; i++) {
     //     bmalloc(128);

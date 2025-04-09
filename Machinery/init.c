@@ -15,6 +15,7 @@ PULONG_PTR gl_bheap_base;
 MEM_EXTENDED_PARAMETER gl_block_mem_parameters;
 BHEAP_STATE gl_bheap_state;
 BOOL gl_bheap_initialized;
+BHEAP_BLOCK_TREE gl_bheap_tree;
 
 
 /**
@@ -35,6 +36,7 @@ MEM_ADDRESS_REQUIREMENTS address_requirements;
  */
 ULONG_PTR init_bheap() {
 
+    // Create the parameters we will use when we VirtualAlloc blocks
     gl_block_mem_parameters.Type = MemExtendedParameterAddressRequirements;
 
     address_requirements.Alignment = BLOCK_SIZE;
@@ -43,7 +45,8 @@ ULONG_PTR init_bheap() {
     address_requirements.HighestEndingAddress = NULL;
 
     gl_block_mem_parameters.Pointer = &address_requirements;
-
+    
+    // Create our initial dynamic block
     PBHEAP_BLOCK initial_block = create_new_block(DYNAMIC_BLOCK);
 
     if (initial_block == NULL) {
@@ -58,6 +61,10 @@ ULONG_PTR init_bheap() {
 
     gl_bheap_state.dynamic_block = initial_block; 
     gl_bheap_initialized = TRUE;
+
+    // Initialize our block tree
+    gl_bheap_tree.root = initial_block;
+    InitializeSRWLock(&gl_bheap_tree.tree_lock);
 
     return SUCCESS;
 }

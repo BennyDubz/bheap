@@ -75,7 +75,7 @@ void dynamic_insert_into_freelist(PBHEAP_BLOCK block, PDYNAMIC_ALLOCATION alloca
  */
 static void acquire_block_lock(PBHEAP_BLOCK block) {
     while (InterlockedCompareExchangeAcquire16(&block->lock, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED) == SPINLOCK_LOCKED) {
-        InterlockedIncrement64(&block->contention_count);
+        InterlockedIncrement64(&block->block_contention_count);
         YieldProcessor();
     }
  }
@@ -189,3 +189,203 @@ PDYNAMIC_ALLOCATION allocate_from_dynamic_block(PBHEAP_BLOCK block, ULONG_PTR al
 
     return recast;
 }
+
+
+/**
+ * Handles the recursive searching within the tree
+ */
+static PBHEAP_BLOCK find_relevant_block_helper(PBHEAP_BLOCK node, PULONG_PTR addr) {
+    if (node == NULL) {
+        return NULL;
+    }
+
+    if (addr > node->block_base && addr < node->block_commit_limit) {
+        return node;
+    }
+
+    if (addr < node->block_base) {
+        return find_relevant_block_helper(node->left, addr);
+    }
+
+    return find_relevant_block_helper(node->right, addr);
+}
+
+
+/**
+ * Finds the relevant block for the given address, if it exists
+ */
+PBHEAP_BLOCK find_relevant_block(PBHEAP_BLOCK_TREE tree, void* addr) {
+    AcquireSRWLockShared(&tree->tree_lock);
+
+    PBHEAP_BLOCK result = find_relevant_block_helper(tree->root, (PULONG_PTR) addr);
+
+    ReleaseSRWLockShared(&tree->tree_lock);
+
+    return result;
+}
+
+
+/**
+ * Inserts the block into the tree as if it were a standard binary search tree, without any acknowledgement to the colors
+ * 
+ * Assumes the tree's lock is held **exclusive** prior to this happening
+ */
+static void insert_tree_no_rebalance(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block) {
+    PBHEAP_BLOCK curr_node = tree->root;
+
+    while (TRUE) {
+        // We sort purely based on the addresses of the blocks
+        if (curr_node > block) {
+            if (curr_node->left) {
+                curr_node = curr_node->left;
+                continue;
+            }
+
+            curr_node->left = block;
+            break;
+        }
+
+        if (curr_node < block) {
+            if (curr_node->right) {
+                curr_node = curr_node->right;
+                continue;
+            }
+
+            curr_node->right = block;
+            break;
+        }
+    }
+
+    block->parent = curr_node;
+}
+
+
+/**
+ * Rotates the subtree to the left with block as its "subroot"
+ */
+static void rotate_left(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block) {
+    PBHEAP_BLOCK rotation_partner = block->right;
+    
+    block->right = rotation_partner->left;
+
+    if (rotation_partner->left != NULL) {
+        rotation_partner->left->parent = block;
+    }
+
+    rotation_partner->parent = block->parent;
+
+    if (block->parent == NULL) {
+        tree->root = rotation_partner;
+    } else {
+        if (block == block->parent->left) {
+            block->parent->left = rotation_partner;
+        } else {
+            block->parent->right = rotation_partner;
+        }
+    }
+
+    rotation_partner->left = block;
+    block->parent = rotation_partner;
+}
+
+/**
+ * Rotates the subtree to the right with block as its "subroot"
+ */
+static void rotate_right(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block) {
+    PBHEAP_BLOCK rotation_partner = block->left;
+
+    block->left = rotation_partner->right;
+
+    if (rotation_partner->right != NULL) {
+        rotation_partner->right->parent = block;
+    }
+
+    rotation_partner->parent = block->parent;
+
+    if (block->parent == NULL) {
+        tree->root = rotation_partner;
+    } else {
+        if (block == block->parent->left) {
+            block->parent->left = rotation_partner;
+        } else {
+            block->parent->right = rotation_partner;
+        }
+    }
+
+    rotation_partner->right = block;
+    block->parent = rotation_partner;
+}
+
+
+/**
+ * Handles the insertion of the new given block into the tree, while maintaining the red-black balance of the tree
+ * 
+ */
+void insert_block_into_tree(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block) {
+    AcquireSRWLockExclusive(&tree->tree_lock);
+    
+    insert_tree_no_rebalance(tree, block);
+
+    block->color = RED;
+    block->left = NULL;
+    block->right = NULL;
+
+    PBHEAP_BLOCK curr_node = block;
+    PBHEAP_BLOCK uncle_node;
+
+    while (curr_node != tree->root && curr_node->parent->color == RED) {
+        // If curr_node's parent is left, we want the uncle to be a right
+        // Since curr_node->parent is RED, it must have a BLACK parent
+        if (curr_node->parent == curr_node->parent->parent->left) {
+            uncle_node = curr_node->parent->parent->right;
+
+            // If the uncle is red, we can change the parent and uncle and move up the tree
+            if (uncle_node->color == RED) {
+                curr_node->parent->color = BLACK;
+                uncle_node->color = BLACK;
+                curr_node = curr_node->parent->parent;
+                continue;
+            }
+
+            // If the uncle is black, and our current node is a right, we have to move
+            // up the tree and rotate left before continuing
+            if (curr_node == curr_node->parent->right) {
+                curr_node = curr_node->parent;
+                rotate_left(tree, curr_node);
+                continue;
+            }
+
+            // If the uncle is black, and our current node is a left, we have to adjust our parent
+            // and grandparent before rotating right
+            curr_node->parent->color = BLACK;
+            curr_node->parent->parent->color = RED;
+            rotate_right(tree, curr_node->parent->parent);
+
+        } else {
+            // curr_node's parent is a right, the uncle needs to be a left
+            uncle_node = curr_node->parent->parent->left;
+
+            if (uncle_node->color == RED) {
+                curr_node->parent->color = BLACK;
+                uncle_node->color = BLACK;
+                curr_node = curr_node->parent->parent;
+                continue;
+            }
+
+            if (curr_node == curr_node->parent->right) {
+                curr_node = curr_node->parent;
+                rotate_left(tree, curr_node);
+                continue;
+            }
+
+            curr_node->parent->color = BLACK;
+            curr_node->parent->parent->color = RED;
+            rotate_right(tree, curr_node->parent->parent);
+        }
+    }
+
+    tree->root->color = BLACK;
+
+    ReleaseSRWLockExclusive(&tree->tree_lock);
+}
+

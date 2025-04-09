@@ -22,6 +22,7 @@ extern PULONG_PTR gl_bheap_base;
  */
 extern BHEAP_STATE gl_bheap_state;
 
+extern BHEAP_BLOCK_TREE gl_bheap_tree;
 
 /**
  * Other

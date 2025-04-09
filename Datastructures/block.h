@@ -8,6 +8,9 @@
 #define DYNAMIC_BLOCK 0
 #define UNIFORM_BLOCK 1
 
+#define RED 0
+#define BLACK 1
+
 // Example: (16 / 8) - 2 --> 0
 #define ALLOCATION_SIZE_TO_INDEX(x) ((x / 8) - 2)
 
@@ -72,13 +75,14 @@ typedef struct BHEAP_UNIFORM_BLOCK_STRUCT {
 
 
 /**
- * A consistent block struct to make the tree operations simpler
+ * A consistent block struct that will make the tree operations simpler.
+ * 
+ * Stores the metadata for consistent or dynamic allocations, depending on the block_type
  */
 typedef struct BHEAP_BLOCK_STRUCT {
     volatile WORD lock;
-    WORD block_type;
 
-    volatile ULONG_PTR contention_count;
+    volatile ULONG_PTR block_contention_count;
 
     // The base address where allocations are actually made
     PULONG_PTR block_base;
@@ -89,11 +93,27 @@ typedef struct BHEAP_BLOCK_STRUCT {
     // The limit for committed memory
     volatile PULONG_PTR block_commit_limit;
 
+    WORD block_type:1;
+    WORD color:1;
+    WORD unused:14;
+
+    // Tree functionality is handled with these pointers and the color above
+    struct BHEAP_BLOCK_STRUCT* left;
+    struct BHEAP_BLOCK_STRUCT* right;
+    struct BHEAP_BLOCK_STRUCT* parent;
+
+
     union {
         BHEAP_DYNAMIC_BLOCK dynamic_block;
         BHEAP_UNIFORM_BLOCK uniform_block;
     };
 } BHEAP_BLOCK, *PBHEAP_BLOCK;
+
+
+typedef struct {
+    PBHEAP_BLOCK root;
+    SRWLOCK tree_lock;
+} BHEAP_BLOCK_TREE, *PBHEAP_BLOCK_TREE;
 
 #endif
 
@@ -120,3 +140,15 @@ void dynamic_insert_into_freelist(PBHEAP_BLOCK block, PDYNAMIC_ALLOCATION alloca
  * it will extend from the block's wilderness.
  */
 PDYNAMIC_ALLOCATION allocate_from_dynamic_block(PBHEAP_BLOCK block, ULONG_PTR allocation_size);
+
+
+/**
+ * Finds the relevant block for the given address and block tree, if it exists
+ */
+PBHEAP_BLOCK find_relevant_block(PBHEAP_BLOCK_TREE tree, void* addr);
+
+
+/**
+ * Handles the insertion of the new given block into the tree, while maintaining the red-black balance of the tree
+ */
+void insert_block_into_tree(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block);
