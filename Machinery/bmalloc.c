@@ -41,7 +41,7 @@ void* bmalloc(ULONG_PTR allocation_size) {
     }
 
     // See if we have anything in a consistent block for this allocation size
-    if (gl_bheap_state.consistent_blocks_exist[ALLOCATION_SIZE_TO_INDEX(allocation_size)]) {
+    if (gl_bheap_state.uniform_blocks_exist[ALLOCATION_SIZE_TO_INDEX(allocation_size)]) {
         result = handle_consistent_request(allocation_size);
 
         if (result != NULL) {
@@ -65,7 +65,7 @@ void* handle_large_request(ULONG_PTR allocation_size) {
      */
     void* allocation = VirtualAlloc(NULL, allocation_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-    return NULL;
+    return allocation;
 }
 
 
@@ -81,6 +81,8 @@ void* handle_dynamic_request(ULONG_PTR allocation_size) {
     if (dynamic_alloc == NULL) {
         return NULL;
     }
+
+    InterlockedIncrement64(gl_bheap_state.allocation_counts[ALLOCATION_SIZE_TO_INDEX(allocation_size)]);
 
     return &dynamic_alloc->data;
 }

@@ -152,3 +152,11 @@ PBHEAP_BLOCK find_relevant_block(PBHEAP_BLOCK_TREE tree, void* addr);
  * Handles the insertion of the new given block into the tree, while maintaining the red-black balance of the tree
  */
 void insert_block_into_tree(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block);
+
+
+/**
+ * Creates a uniform section inside of the block for the given allocation size, and creates the metadata sections for it.
+ * 
+ * Returns TRUE if successful, FALSE if the block did not have enough space or if committing the memory failed
+ */
+BOOL create_uniform_section(PBHEAP_BLOCK uniform_block, ULONG_PTR allocation_size);

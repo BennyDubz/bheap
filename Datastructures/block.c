@@ -389,3 +389,11 @@ void insert_block_into_tree(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block) {
     ReleaseSRWLockExclusive(&tree->tree_lock);
 }
 
+
+
+/**
+ * Creates a uniform section inside of the block for the given allocation size, and creates the metadata sections for it.
+ * 
+ * Returns TRUE if successful, FALSE if the block did not have enough space or if committing the memory failed
+ */
+BOOL create_uniform_section(PBHEAP_BLOCK uniform_block, ULONG_PTR allocation_size);

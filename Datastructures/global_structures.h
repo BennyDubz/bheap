@@ -13,10 +13,10 @@
  * This will keep track of the global state of the heap
  */
 typedef struct BHEAP_STATE_STRUCT {
-    SHORT consistent_blocks_exist[NUM_ALLOCATION_SIZES];
+    CHAR uniform_blocks_exist[NUM_ALLOCATION_SIZES];
     ULONG64 allocation_counts[NUM_ALLOCATION_SIZES];
     PBHEAP_BLOCK dynamic_block;
-
+    PBHEAP_BLOCK uniform_block;
 } BHEAP_STATE, *PBHEAP_STATE;
 
 #endif

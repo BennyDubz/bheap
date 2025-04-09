@@ -10,7 +10,7 @@
 
 static void free_large_allocation(void* allocation);
 
-static void free_consistent_allocation(PBHEAP_BLOCK consistent_block, void* allocation);
+static void free_consistent_allocation(PBHEAP_BLOCK uniform_block, void* allocation);
 
 static void free_dynamic_allocation(PBHEAP_BLOCK dynamic_block, void* allocation);
 

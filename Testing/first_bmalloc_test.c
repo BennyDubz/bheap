@@ -102,6 +102,9 @@ void large_allocation_test_single_thread() {
         *ptr = '\xff';
     }
 
+    bfree(allocation_ptr);
+    bfree(mega_ptr);
+
     printf("Large allocation test single thread succeeded\n");
 }
 
@@ -117,7 +120,7 @@ int main(int argc, char** argv) {
         large_allocation_test_single_thread();
         return;
     }
-
+    
     // for (int i = 0; i < 100; i++) {
     //     bmalloc(128);
     // }
