@@ -14,6 +14,8 @@
 // Example: (16 / 8) - 2 --> 0
 #define ALLOCATION_SIZE_TO_INDEX(x) ((x / 8) - 2)
 
+#define UNIFORM_MAP_SIZE ((BLOCK_SIZE / PAGESIZE) / (sizeof(WORD) * 8))
+
 #ifndef DYN_ALLOC
 #define DYN_ALLOC
 
@@ -66,11 +68,37 @@ typedef struct BHEAP_DYNAMIC_BLOCK_STRUCT {
 
 
 /**
+ * Representing a single section (at least one page) in a uniform block for a specific size allocation
+ */
+typedef struct UNIFORM_SECTION_STRUCT {
+    // Needed for editing the flink
+    volatile WORD lock;
+    ULONG_PTR section_allocation_size;
+    // We can keep track of a flink in case we have multiple sections for the same size, so that we can just have a pointer to
+    // a single section at the beginning of the uniform block for the allocation size (will need to consider how to synchronize this best...)
+    struct UNIFORM_SECTION_STRUCT* flink; 
+
+    volatile ULONG_PTR num_remaining_allocations;
+    PVOID section_limit;
+    PVOID section_base;
+    volatile PWORD allocation_map;
+
+    // (2 + 8 + 8 + 8 + 8 + 8) --> 42
+    // ((ULONG section_limit - ULONG section_base) - 42 --> remaining bytes
+    // (remaining_bytes / section_allocation_size) --> num_slots
+    // num_slots = (num_slots - (num_slots - 1 / 16) + 1) --> adjusted for allocation_map
+} UNIFORM_SECTION, *PUNIFORM_SECTION;
+
+#define UNIFORM_SECTION_METADATA_OVERHEAD (sizeof(UNIFORM_SECTION) - 2)
+
+/**
  * A block of memory for managing uniformly sized allocations (all are the same size)
  */
 typedef struct BHEAP_UNIFORM_BLOCK_STRUCT {
-    struct BHEAP_UNIFORM_BLOCK_STRUCT* flink; // can later be improved to have a tree datastructure
-    PWORD allocation_map;
+    struct BHEAP_UNIFORM_BLOCK_STRUCT* flink; 
+    PUNIFORM_SECTION sections[NUM_ALLOCATION_SIZES];
+    // Enough words to handle mapping every reserved page in block, excluding the first (which is metadata)
+    volatile WORD allocation_map[UNIFORM_MAP_SIZE];
 } BHEAP_UNIFORM_BLOCK, *PBHEAP_UNIFORM_BLOCK;
 
 
@@ -102,11 +130,11 @@ typedef struct BHEAP_BLOCK_STRUCT {
     struct BHEAP_BLOCK_STRUCT* right;
     struct BHEAP_BLOCK_STRUCT* parent;
 
-
     union {
         BHEAP_DYNAMIC_BLOCK dynamic_block;
         BHEAP_UNIFORM_BLOCK uniform_block;
     };
+
 } BHEAP_BLOCK, *PBHEAP_BLOCK;
 
 
@@ -116,6 +144,19 @@ typedef struct {
 } BHEAP_BLOCK_TREE, *PBHEAP_BLOCK_TREE;
 
 #endif
+
+
+/**
+ * Spins until we are able to acquire the lock for the heap block
+ */
+void acquire_block_lock(PBHEAP_BLOCK block);
+
+
+/**
+ * Releases the block's spinlock
+ */
+void release_block_lock(PBHEAP_BLOCK block);
+
 
 /**
  * Unlinks an allocation of the given size from the block, if possible.

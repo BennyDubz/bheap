@@ -73,7 +73,7 @@ void dynamic_insert_into_freelist(PBHEAP_BLOCK block, PDYNAMIC_ALLOCATION alloca
 /**
  * Spins until we are able to acquire the lock for the heap block
  */
-static void acquire_block_lock(PBHEAP_BLOCK block) {
+void acquire_block_lock(PBHEAP_BLOCK block) {
     while (InterlockedCompareExchangeAcquire16(&block->lock, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED) == SPINLOCK_LOCKED) {
         InterlockedIncrement64(&block->block_contention_count);
         YieldProcessor();
@@ -84,7 +84,7 @@ static void acquire_block_lock(PBHEAP_BLOCK block) {
 /**
  * Releases the block's spinlock
  */
-static void release_block_lock(PBHEAP_BLOCK block) {
+void release_block_lock(PBHEAP_BLOCK block) {
     #if DEBUG_MODE
     assert(block->lock == SPINLOCK_LOCKED);
     #endif
@@ -396,4 +396,5 @@ void insert_block_into_tree(PBHEAP_BLOCK_TREE tree, PBHEAP_BLOCK block) {
  * 
  * Returns TRUE if successful, FALSE if the block did not have enough space or if committing the memory failed
  */
-BOOL create_uniform_section(PBHEAP_BLOCK uniform_block, ULONG_PTR allocation_size);
+BOOL create_uniform_section(PBHEAP_BLOCK uniform_block, ULONG_PTR allocation_size) {
+}

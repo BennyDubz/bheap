@@ -41,3 +41,6 @@
 #define ROUND_UP_SIZE(x) (((x & 7) ? ((x | 7) + 1) : x))
 
 #define ROUND_UP_PAGESIZE(x) ((x & 0xFFF) ? ((x | 0xFFF) + 1) : x)
+
+// For bitwise operations
+#define SET_LOWEST_NUMBITS(x) ((1 << x) - 1)
